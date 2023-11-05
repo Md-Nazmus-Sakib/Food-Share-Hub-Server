@@ -29,8 +29,12 @@ async function run() {
         const featuredFoodsCollection = client.db("Food-Share-Hub").collection("featured-foods");
 
         //To Get Featured food Data
+        app.get('/feature-food', async (req, res) => {
+            const result = await featuredFoodsCollection.find().sort({ Food_Quantity: -1 }).limit(6).toArray();
+            res.send(result)
+        })
         app.get('/food', async (req, res) => {
-            const result = await featuredFoodsCollection.find().toArray();
+            const result = await featuredFoodsCollection.find().sort({ Expired_Date: 1 }).toArray();
             res.send(result)
         })
 
