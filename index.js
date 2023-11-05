@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 const cors = require('cors');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 
@@ -28,13 +28,21 @@ async function run() {
         await client.connect();
         const featuredFoodsCollection = client.db("Food-Share-Hub").collection("featured-foods");
 
-        //To Get Featured food Data
+        //To Get Featured food Data by filtering Quantity and Limit 6 data
         app.get('/feature-food', async (req, res) => {
             const result = await featuredFoodsCollection.find().sort({ Food_Quantity: -1 }).limit(6).toArray();
             res.send(result)
         })
+        // To get all available food by sorting expired-date
         app.get('/food', async (req, res) => {
             const result = await featuredFoodsCollection.find().sort({ Expired_Date: 1 }).toArray();
+            res.send(result)
+        })
+        //To get individual food by id 
+        app.get('/food/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await featuredFoodsCollection.findOne(query);
             res.send(result)
         })
 
