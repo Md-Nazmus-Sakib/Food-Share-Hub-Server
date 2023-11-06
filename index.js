@@ -47,13 +47,19 @@ async function run() {
             res.send(result)
         })
 
+        app.post('/food', async (req, res) => {
+            const addFood = req.body;
+            const result = await featuredFoodsCollection.insertOne(addFood);
+            res.send(result)
+
+        })
+
         //My booking section
 
         //post my booking to store db
 
         app.post('/bookings-food', async (req, res) => {
             const bookedFood = req.body;
-            console.log(bookedFood)
             const result = await bookFoodsCollection.insertOne(bookedFood)
             res.send(result)
         })
