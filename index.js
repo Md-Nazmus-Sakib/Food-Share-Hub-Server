@@ -27,6 +27,7 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
         const featuredFoodsCollection = client.db("Food-Share-Hub").collection("featured-foods");
+        const bookFoodsCollection = client.db("Food-Share-Hub").collection("bookings-food");
 
         //To Get Featured food Data by filtering Quantity and Limit 6 data
         app.get('/feature-food', async (req, res) => {
@@ -43,6 +44,17 @@ async function run() {
             const id = req.params.id;
             const query = { _id: new ObjectId(id) }
             const result = await featuredFoodsCollection.findOne(query);
+            res.send(result)
+        })
+
+        //My booking section
+
+        //post my booking to store db
+
+        app.post('/bookings-food', async (req, res) => {
+            const bookedFood = req.body;
+            console.log(bookedFood)
+            const result = await bookFoodsCollection.insertOne(bookedFood)
             res.send(result)
         })
 
