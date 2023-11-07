@@ -59,6 +59,28 @@ async function run() {
             res.send(result)
 
         })
+        //update Food data
+        app.put('/food/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updateFood = req.body;
+            const food = {
+                // Food_Name, Food_Image, Food_Quantity, Pickup_Location, Expired_Date, Additional_Notes 
+                $set: {
+                    Food_Name: updateFood.Food_Name,
+                    Food_Image: updateFood.Food_Image,
+                    Food_Quantity: updateFood.Food_Quantity,
+                    Pickup_Location: updateFood.Pickup_Location,
+                    Expired_Date: updateFood.Expired_Date,
+                    Additional_Notes: updateFood.Additional_Notes,
+
+                }
+            }
+            const result = await featuredFoodsCollection.updateOne(filter, food, options);
+            res.send(result)
+
+        })
         //Delete a food
         app.delete('/food/:id', async (req, res) => {
             const id = req.params.id;
