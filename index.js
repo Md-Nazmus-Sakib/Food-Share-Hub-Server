@@ -81,16 +81,39 @@ async function run() {
             res.send(result)
 
         })
-        //Delete a food
-        app.delete('/food/:id', async (req, res) => {
+        // status update 
+        app.patch('/status/:id', async (req, res) => {
             const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const result = await featuredFoodsCollection.deleteOne(query);
-            res.send(result)
+            const updateDoc = {
+                $set: {
+                    Food_Status: 'Not_Available'
+                },
+            };
+            const bookResult = await bookFoodsCollection.updateMany({ food_id: id }, updateDoc)
+            const result = await featuredFoodsCollection.updateOne({ _id: new ObjectId(id) }, updateDoc);
+            res.send({ result, bookResult })
+        })
+
+
+
+        //Delete a food
+        app.delete('/delete/:id', async (req, res) => {
+            const id = req.params.id;
+
+            const success = await featuredFoodsCollection.deleteOne({ _id: new ObjectId(id) });
+            const result = await bookFoodsCollection.deleteMany({ food_id: id })
+            res.send({ result, success })
         })
 
         //My booking section-----------------------------------
-
+        //get booking data by donar email
+        app.get('/booking-food/:email', async (req, res) => {
+            const userEmail = req.params.email;
+            console.log(userEmail)
+            const query = { Donator_Email: userEmail }
+            const result = await bookFoodsCollection.find(query).toArray();
+            res.send(result)
+        })
         //post my booking to store db
 
         app.post('/bookings-food', async (req, res) => {
