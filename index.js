@@ -3,14 +3,34 @@ const app = express();
 const cors = require('cors');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 const port = process.env.PORT || 5000;
 
 // middle wear
-app.use(cors())
-app.use(express.json());
+app.use(cors({
+    origin: ['http://localhost:5173'],
+    credentials: true
+}))
+app.use(express.json())
+app.use(cookieParser())
 
+const verifyJwt = (req, res, next) => {
+    const token = req.cookies?.token;
+    console.log(token)
+    if (!token) {
+        return res.status(401).send({ message: 'unauthorized' })
+    }
+    jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+        if (err) {
 
+            return res.status(401).send({ message: 'unauthorized' })
+        }
+        req.user = decoded
+        next()
+    })
 
+}
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.91makds.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -29,14 +49,31 @@ async function run() {
         const featuredFoodsCollection = client.db("Food-Share-Hub").collection("featured-foods");
         const bookFoodsCollection = client.db("Food-Share-Hub").collection("bookings-food");
 
+        // jwt 
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            console.log(user)
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '1h' })
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'none'
+            }).send({ success: true })
+        })
+
+        app.post('/logout', (req, res) => {
+            res.clearCookie("token", { maxAge: 0 }).send({ success: true })
+        })
+
         //To Get Featured food Data by filtering Quantity and Limit 6 data
         app.get('/feature-food', async (req, res) => {
-            const result = await featuredFoodsCollection.find().sort({ Food_Quantity: -1 }).limit(6).toArray();
+            let query = { Food_Status: { $ne: 'Not_Available' } }
+            const result = await featuredFoodsCollection.find(query).sort({ Food_Quantity: -1 }).limit(6).toArray();
             res.send(result)
         })
         // To get all available food by sorting expired-date
         app.get('/food', async (req, res) => {
-            let query = {}
+            let query = { Food_Status: { $ne: 'Not_Available' } }
             const userEmail = req.query?.email;
             // console.log(userEmail)
             if (userEmail) {
@@ -53,14 +90,14 @@ async function run() {
             res.send(result)
         })
 
-        app.post('/food', async (req, res) => {
+        app.post('/food', verifyJwt, async (req, res) => {
             const addFood = req.body;
             const result = await featuredFoodsCollection.insertOne(addFood);
             res.send(result)
 
         })
         //update Food data
-        app.put('/food/:id', async (req, res) => {
+        app.put('/food/:id', verifyJwt, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const options = { upsert: true };
@@ -82,7 +119,7 @@ async function run() {
 
         })
         // status update 
-        app.patch('/status/:id', async (req, res) => {
+        app.patch('/status/:id', verifyJwt, async (req, res) => {
             const id = req.params.id;
             const updateDoc = {
                 $set: {
@@ -97,7 +134,7 @@ async function run() {
 
 
         //Delete a food
-        app.delete('/delete/:id', async (req, res) => {
+        app.delete('/delete/:id', verifyJwt, async (req, res) => {
             const id = req.params.id;
 
             const success = await featuredFoodsCollection.deleteOne({ _id: new ObjectId(id) });
@@ -107,20 +144,46 @@ async function run() {
 
         //My booking section-----------------------------------
         //get booking data by donar email
-        app.get('/booking-food/:email', async (req, res) => {
+        app.get('/booking-food/:email', verifyJwt, async (req, res) => {
             const userEmail = req.params.email;
-            console.log(userEmail)
-            const query = { Donator_Email: userEmail }
+            // console.log(userEmail)
+            if (userEmail !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            const query = {
+                $or: [{ Donator_Email: userEmail },
+                { Requester_Email: userEmail }
+                ]
+            };
             const result = await bookFoodsCollection.find(query).toArray();
             res.send(result)
         })
         //post my booking to store db
 
-        app.post('/bookings-food', async (req, res) => {
+        app.post('/bookings-food', verifyJwt, async (req, res) => {
             const bookedFood = req.body;
-            const result = await bookFoodsCollection.insertOne(bookedFood)
-            res.send(result)
+            if (bookedFood.Requester_Email !== req.user.email) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            const query = {
+                $and: [
+                    { Requester_Email: bookedFood.Requester_Email },
+                    { food_id: bookedFood.food_id }
+                ]
+            };
+            const existingFood = await bookFoodsCollection.findOne(query);
+            console.log(query, existingFood)
+            if (existingFood) {
+                return res.send({ message: 'already exist' })
+            }
+            else {
+                const result = await bookFoodsCollection.insertOne(bookedFood)
+                res.send(result)
+            }
+
         })
+
+
 
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
