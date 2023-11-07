@@ -36,7 +36,13 @@ async function run() {
         })
         // To get all available food by sorting expired-date
         app.get('/food', async (req, res) => {
-            const result = await featuredFoodsCollection.find().sort({ Expired_Date: 1 }).toArray();
+            let query = {}
+            const userEmail = req.query?.email;
+            // console.log(userEmail)
+            if (userEmail) {
+                query = { Donator_Email: userEmail }
+            }
+            const result = await featuredFoodsCollection.find(query).sort({ Expired_Date: 1 }).toArray();
             res.send(result)
         })
         //To get individual food by id 
@@ -53,8 +59,15 @@ async function run() {
             res.send(result)
 
         })
+        //Delete a food
+        app.delete('/food/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await featuredFoodsCollection.deleteOne(query);
+            res.send(result)
+        })
 
-        //My booking section
+        //My booking section-----------------------------------
 
         //post my booking to store db
 
