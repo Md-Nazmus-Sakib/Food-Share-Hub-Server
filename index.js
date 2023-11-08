@@ -73,12 +73,24 @@ async function run() {
         })
         // To get all available food by sorting expired-date
         app.get('/food', async (req, res) => {
-            let query = { Food_Status: { $ne: 'Not_Available' } }
             const userEmail = req.query?.email;
-            // console.log(userEmail)
+            const searchTerm = req.query?.search;
+            console.log(searchTerm)
+            let query = { Food_Status: { $ne: 'Not_Available' } }
             if (userEmail) {
                 query = { Donator_Email: userEmail }
             }
+
+            if (searchTerm) {
+
+                query = {
+                    $and: [
+                        query,
+                        { Food_Name: { $regex: searchTerm, $options: 'i' } }
+                    ]
+                };
+            }
+
             const result = await featuredFoodsCollection.find(query).sort({ Expired_Date: 1 }).toArray();
             res.send(result)
         })
@@ -155,7 +167,16 @@ async function run() {
                 { Requester_Email: userEmail }
                 ]
             };
+
+            app.delete('/booking-food/:id', verifyJwt, async (req, res) => {
+                const id = req.params.id;
+                const result = await bookFoodsCollection.deleteOne({ _id: new ObjectId(id) })
+                res.send(result)
+            })
+
+
             const result = await bookFoodsCollection.find(query).toArray();
+            // console.log(result)
             res.send(result)
         })
         //post my booking to store db
@@ -172,7 +193,7 @@ async function run() {
                 ]
             };
             const existingFood = await bookFoodsCollection.findOne(query);
-            console.log(query, existingFood)
+            // console.log(query, existingFood)
             if (existingFood) {
                 return res.send({ message: 'already exist' })
             }
